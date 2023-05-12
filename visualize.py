@@ -32,6 +32,7 @@ def get_transform(input_size):
     resize_im = (input_size != 224)
     if resize_im:
         size = int((256 / 224) * args.input_size)
+        # size = 224
         t.append(
             transforms.Resize(size, interpolation=3),  # to maintain same ratio w.r.t. 224 images
         )
@@ -80,7 +81,9 @@ def get_args_parser():
     parser.add_argument('--epochs', default=300, type=int)
 
     # Model parameters
-    parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
+    # parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
+    #                     help='Name of model to train')
+    parser.add_argument('--model', default='evo_deit_tiny_vis_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--input-size', default=224, type=int, help='images input size')
 
@@ -185,8 +188,10 @@ def get_args_parser():
     parser.add_argument('--finetune', default='', help='finetune from checkpoint')
 
     # Dataset parameters
-    parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
-                        help='dataset path')
+    # parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    #                     help='dataset path')
+    parser.add_argument('--data-path', default='/data/ML_document/imagenette2/', type=str,
+                        help='dataset path')                        
     parser.add_argument('--data-set', default='IMNET', choices=['CIFAR', 'IMNET', 'INAT', 'INAT19'],
                         type=str, help='Image Net dataset path')
     parser.add_argument('--inat-category', default='name',

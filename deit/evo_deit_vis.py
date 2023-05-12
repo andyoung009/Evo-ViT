@@ -20,6 +20,8 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 
+# 这段代码是用于创建一个名为__name__的logger对象，用于记录日志信息。__name__是一个特殊的Python变量，表示当前模块的名称。logging.getLogger()函数会返回一个logger对象，
+# 可以用于记录日志信息。在这里，使用__name__作为logger的名称，可以方便地跟踪日志信息的来源。例如，如果在其他模块中调用了这个logger对象，就可以通过logger的名称来确定日志信息的来源。
 _logger = logging.getLogger(__name__)
 
 
@@ -36,10 +38,19 @@ def _cfg(url='', **kwargs):
 
 def easy_gather(x, indices):
     # x: B,N,C; indices: B,N
+    # 这里获取输入张`x`的形状，其中`B`表示batch size，`N`表示数据点数，`C`表示特征数。
     B, N, C = x.shape
+    # 这里获取索引张量`indices`的形状，其中`N_new`表示新的数据点数。
     N_new = indices.shape[1]
+    # 这里创建一个偏移量张量`offset`，用于将每个batch的数据点索映射到整个数据集中的唯一索引。
+    # 具体来说，偏移量张量的形状为`(B, 1)`，其中每个元素为`i*N`，其中`i`表示batch的索引。
+    # 这样，每个batch的数据点索引就可以通过加上对应的偏移量来映射到整个数据集中的唯一索引。
     offset = torch.arange(B, dtype=torch.long, device=x.device).view(B, 1) * N
+    # 这里将偏移量张量加到索引张量上，得到映射到整个数据集中的唯一索引。
     indices = indices + offset
+    # 这里将输入张量`x`展平成一个二维张量，然后根据索引张量`indices`获取对应的数据点，最后将结果重新变形成三维张量。
+    # 具体来说，首先将输入张量`x`变形成一个二维张量，形状为`(B*N, C)`，然后使用`indices.view(-1)`将索引张量展平成一维张量
+    # 然后使用`[]`运算符获取对应的数据点，最后使用`reshape`函数将结果变形成三维张量，形为`(B, N_new, C)`。
     out = x.reshape(B * N, C)[indices.view(-1)].reshape(B, N_new, C)
     return out
 
@@ -99,8 +110,8 @@ class VAttention(nn.Module):
 
     def forward(self, x):
         B, N, C = x.shape
-        v = self.v(x).reshape(B, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        v = v[0]  # make torchscript happy (cannot use tensor as tuple)
+        v = self.v(x).reshape(B, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)  #v.shape = (1,B,H,N,C//H)
+        v = v[0]  # make torchscript happy (cannot use tensor as tuple) v[0].shape = (B,H,N,C//H)
 
         return v
 
@@ -182,6 +193,9 @@ class HybridEmbed(nn.Module):
         else:
             feature_size = to_2tuple(feature_size)
             if hasattr(self.backbone, 'feature_info'):
+                # 这段代码是在获取骨干网络的最后一个特征图的通道数。`feature_info`是一个属性，它返回一个`FeatureInfo`对象，
+                # 该对象包含有关骨干网络输出特征图的信息，例如通道数、步幅等。`channels()`方法返回一个列表，其中包含每个特征图的通道数。
+                # `[-1]`表示获取列表中的最后一个元素，即最后一个特征图的通道数。
                 feature_dim = self.backbone.feature_info.channels()[-1]
             else:
                 feature_dim = self.backbone.num_features
@@ -192,7 +206,7 @@ class HybridEmbed(nn.Module):
         x = self.backbone(x)
         if isinstance(x, (list, tuple)):
             x = x[-1]  # last feature if backbone outputs list/tuple of features
-        x = self.proj(x).flatten(2).transpose(1, 2)
+        x = self.proj(x).flatten(2).transpose(1, 2) #(B,N,C)
         return x
 
 
@@ -298,16 +312,23 @@ class EvoVisionTransformer(nn.Module):
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
 
+    # 定义了一个名为_init_weights的函数，用于初始化模型的权重,接受一个模块m作为参数。
     def _init_weights(self, m):
+        # 判断m是否是nn.Linear类型的模块，如果是，则使用截断正态分布初始化权重，标准差为0.02。
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
+            # 如果模块包含偏置项，则将偏置项初始化为0。
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+        # 判断m是否是nn.LayerNorm类型的模块，如果是，则将偏置项初始化为0，将权重初始化为1。这是LayerNorm的常用初始化方法。
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
+    # @torch.jit.ignore是一个装饰器，用于指示Torch JIT编译器忽略这个函数，因为它不需要被编译。
     @torch.jit.ignore
+    # 这里返回一个集合，其中包含不应该被权重衰减的参数名称。
+    # 在Vision Transformer模型中，位置嵌入（pos_embed）和分类令牌（cls_token）通常不会被权重衰减，因为它们对模型的性能影响较小。
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
@@ -336,23 +357,30 @@ class EvoVisionTransformer(nn.Module):
 
         prune_ratio = self.prune_ratio
 
-        ori_index = torch.arange(196, device=x.device).unsqueeze(0)
+        # ori_index = torch.arange(196, device=x.device).unsqueeze(0) # 196 = (224/16) ** 2,应该改成下面所示代码
+        ori_index = torch.arange(196, device=x.device).unsqueeze(0).repeat(B, 1)
         if self.stage_wise_prune:
             stage_index = -1
             for index, blk in enumerate(self.blocks):
-                # token selection
+                # token selection,当index == 4 or index == 8时进行了tokens的稀疏化采样,选取attn前N_个对应的token保存到了self.vis_dict
                 if index == 4 or index == 8:
                     stage_index += 1
+                    # 因为index=4是第一剪枝,不用补全X,index=8是则在前一个阶段补全了x,所以此处的剪枝仍然是基于总的tokens做剪枝的
                     x_patch = x[:, 1:, :]
                     B, N, C = x_patch.shape
                     N_ = int(N * self.stage_prune_ratio[stage_index])
-                    cls_attn, indices = torch.sort(cls_attn, dim=1, descending=True)
+                    cls_attn, indices = torch.sort(cls_attn, dim=1, descending=True)    #cls_attn, indices维度信息均为(B,N)
                     x_patch = easy_gather(x_patch, indices)
 
+                    # 这2行代码将`ori_index`按照`indices`的顺序进行重新排序，然后将排序后的结果存储在`ori_index`中。
+                    # 接着，代码将排序后的`ori_index`的前`N_`个元素存储在`self.vis_dict`字典中，键为`'block{}'.format(index)`，其中`index`是当前块的索引。
+                    # 最后，代码将存储在`self.vis_dict`字典中的元素转换为列表并返回。这段代码的作用是将输入序列中的标记按照其在注意力分数中的重要性进行排序，
+                    # 并将排序后的结果存储在`self.vis_dict`字典中以便于可视化和分析。
                     ori_index = easy_gather(ori_index.unsqueeze(-1), indices).squeeze(-1)
                     self.vis_dict['block{}'.format(index)] = ori_index.squeeze(0)[:N_].tolist()
 
                     if self.training:
+                        # x_为根据cls_attn有序排列的
                         x_ = torch.cat((x[:, :1, :], x_patch), dim=1)
                     else:
                         x[:, 1:, :] = x_patch
@@ -370,6 +398,8 @@ class EvoVisionTransformer(nn.Module):
                     if index == 0:
                         cls_attn = torch.sum(attn[:, :, 0, 1:], dim=1)
                     else:
+                        # 对应文章中公式4,其中系数α对应的是(1 - self.tradeoff[index]),cls_attn为全局分类注意力,
+                        # torch.sum(attn[:, :, 0, 1:], dim=1)为局部(第index+1层)分类注意力
                         cls_attn = (1 - self.tradeoff[index]) * cls_attn + self.tradeoff[index] * torch.sum(
                             attn[:, :, 0, 1:], dim=1)
                     x = (attn @ v).transpose(1, 2).reshape(B, N, C)
@@ -387,6 +417,8 @@ class EvoVisionTransformer(nn.Module):
                     attn = self.qks[index](x)
                     # with torch.no_grad():
                     if self.training:
+                        # 对应文章中公式4,其中系数α对应的是(1 - self.tradeoff[index]),cls_attn为全局分类注意力,
+                        # torch.sum(attn[:, :, 0, 1:], dim=1)为局部(第index+1层)分类注意力
                         temp_cls_attn = (1 - self.tradeoff[index]) * cls_attn[:, :N_] + self.tradeoff[
                             index] * torch.sum(
                             attn[:, :, 0, 1:],
@@ -414,8 +446,10 @@ class EvoVisionTransformer(nn.Module):
                         x = x_
                 else:
                     if index == 7 or index == 11:
+                        # 当训练时,在第8层和输出前(第11层)要把cls_attn比较低的token也补上,因为x_在推理阶段是全token
                         if self.training:
                             x = torch.cat((x, x_[:, N_ + 1:]), dim=1)
+                        # 如果是推理,则把x_的前N_ + 1个token更新,其余不变,x_仍然是全token
                         else:
                             x_[:, :N_ + 1] = x
                             x = x_
@@ -428,11 +462,19 @@ class EvoVisionTransformer(nn.Module):
                     B, N, C = x_patch.shape
                     N_ = int(N * prune_ratio[index])
                     indices = torch.argsort(cls_attn, dim=1, descending=True)
+                    # 这行代码将`cls_attn`张量按照最后一个维度进行扩展，并将其与`x_patch`张量按照后一个维度进行连接。
+                    # 具体来说，`cls_attn.unsqueeze(-1)`将`cls_attn`张量的维度从`(B, N)`扩展为`(B, N, 1)`，
+                    # 然后将其与`x_patch`张量按照最后一个维度进行连接，即将`cls_attn`张量的最后一个维度与`x_patch`张量的最后维度进行连接，
+                    # 得到一个新的张量`x_patch`。新的张量`x_patch`的形状为`(B, N, C+1)`，其中`C`是`x_patch`张量的最后一个维度的大小，
+                    # `1`是`cls_attn`张量的最后一个维度的大小。这行代码的作用是将`cls_attn`张量添加到`x_patch`张量的最后一个维度中，以便在后续的计算中使用。
                     x_patch = torch.cat((x_patch, cls_attn.unsqueeze(-1)), dim=-1)
                     x_sorted = easy_gather(x_patch, indices)
+                    # 从最后一个维度将2者拆分
                     x_patch, cls_attn = x_sorted[:, :, :-1], x_sorted[:, :, -1]
 
+                    # 如果ori_index张量的形状为(1, 196)，则在进行easy_gather操作之前，需要将其转换为(B, N)的形状?见L360修改
                     ori_index = easy_gather(ori_index.unsqueeze(-1), indices).squeeze(-1)
+                    # 因为将ori_index重复了B次,导致第一个维度上为B,此时squeeze(0)实际上已经不起删除维度1的作用了
                     self.vis_dict['block{}'.format(index)] = ori_index.squeeze(0)[:N_].tolist()
 
                     if self.training:
@@ -440,9 +482,11 @@ class EvoVisionTransformer(nn.Module):
                     else:
                         x[:, 1:, :] = x_patch
                         x_ = x
+                    # 截取了前topN_个cls_attn最大的tokens及cls-token,共N_ + 1个,这么做其实导致上面的条件分支失去了意义,不管推理还是训练,处理方式都是一样的
                     x = x_[:, :N_ + 1]
 
                     # slow updating
+                    # 计算挑选出来的topN_个tokens的自注意力机制
                     tmp_x = x
                     B, N, C = x.shape
                     x = self.norms[index](x)
@@ -451,13 +495,16 @@ class EvoVisionTransformer(nn.Module):
 
                     # with torch.no_grad():
                     if self.training:
+                        # 计算cls_attn时没有cls-token,只计算了patches-token的attn
                         temp_cls_attn = (1 - self.tradeoff[index]) * cls_attn[:, :N_] + self.tradeoff[
                             index] * torch.sum(
                             attn[:, :, 0, 1:],
                             dim=1)
+                        # 训练过程中cls_attn的维度实际上没有降低,未更新的cls_token项直接照搬了
                         cls_attn = torch.cat((temp_cls_attn, cls_attn[:, N_:]), dim=1)
 
                     else:
+                        # 推理过程只更新cls_attn的topN_个,利用文章中的公式(4)做更新
                         cls_attn[:, :N_] = (1 - self.tradeoff[index]) * cls_attn[:, :N_] + self.tradeoff[
                             index] * torch.sum(
                             attn[:, :, 0, 1:],
@@ -471,16 +518,19 @@ class EvoVisionTransformer(nn.Module):
                     x = blk(x)
 
                     # fast updating, only preserving the placeholder tokens presents enough good results on DeiT
+                    # 此处代码实现和论文中其实是有区别的,可以参考代码仓库的issue3,见这里https://github.com/YifanXu74/Evo-ViT/issues/3
                     if self.prunecls and index == 11:
                         pass
                     else:
+                        # 训练时直接把所有token都拼接,包括cls_attn比较低的
                         if self.training:
                             x = torch.cat((x, x_[:, N_ + 1:]), dim=1)
+                        # 推理时直接把其余的token扔掉了,确实论文中方法和代码不符合
                         else:
                             x_[:, :N_ + 1] = x
                             x = x_
 
-                # normal updating in the beginning four layers
+                # normal updating in the beginning four layers,prune-ratio为1,不做剪枝
                 else:
                     tmp_x = x
                     B, N, C = x.shape
@@ -493,11 +543,14 @@ class EvoVisionTransformer(nn.Module):
                     else:
                         cls_attn = (1 - self.tradeoff[index]) * cls_attn + self.tradeoff[index] * torch.sum(
                             attn[:, :, 0, 1:], dim=1)
+                    # 自注意力层计算
                     x = (attn @ v).transpose(1, 2).reshape(B, N, C)
                     x = self.projs[index](x)
                     x = blk.drop_path(x)
                     x = x + tmp_x
 
+                    # 自注意力层和线性层分开了,前面因为快慢更新,自注意力层没有办法模块化,要利用中间的计算结果attn
+                    # blk模块为mlp线性层,Feed Forward模块
                     x = blk(x)
 
         cls = x[:, 0]
@@ -616,3 +669,5 @@ if __name__ == '__main__':
     print('Parameters: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
     x = torch.randn(2, 3, 224, 224)
     y = model(x)
+    # print(y[1].shape)
+    print(y)

@@ -38,6 +38,9 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         if mixup_fn is not None:
             samples, targets = mixup_fn(samples, targets)
 
+        # 这段代码使用了混合精度训练（Mixed Precision Training）技术，即使用了PyTorch中的torch.cuda.amp.autocast()和torch.cuda.amp.GradScaler()函数来
+        # 自动执行前向传播和反向传播，并进行梯度缩放。在这种情况下，loss.backward()函数被包含在loss_scaler()函数中，不需要手动调用。
+        # 具体来说，loss_scaler()函数会自动执行反向传播，并将梯度缩放后的结果传递给优化器进行梯度更新。这样可以提高训练速度和模型精度。
         with torch.cuda.amp.autocast():
             outputs = model(samples)
             loss_avg = criterion(samples, outputs[0], targets)

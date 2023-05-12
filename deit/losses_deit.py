@@ -51,6 +51,9 @@ class DistillationLoss(torch.nn.Module):
             T = self.tau
             # taken from https://github.com/peterliht/knowledge-distillation-pytorch/blob/master/model/net.py#L100
             # with slight modifications
+            
+            # 这里将计算出来的KL散度值乘以一个系数(T * T) / outputs_kd.numel()，其中T是温度参数，outputs_kd.numel()表示输出张量outputs_kd中元素的个数。这个系数用于控制蒸馏损失的大小。
+            # 综上所述，这段代码是一个计算蒸馏损失的操作，它使用KL散度来度量模型输出与教师模型输出之间的差异，并乘以一个系数来控制损失的大小。
             distillation_loss = F.kl_div(
                 F.log_softmax(outputs_kd / T, dim=1),
                 F.log_softmax(teacher_outputs / T, dim=1),

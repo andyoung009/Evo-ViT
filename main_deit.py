@@ -367,7 +367,7 @@ def main(args):
 
     if args.eval:
         test_stats = evaluate(data_loader_val, model, device)
-        print("Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         return
 
     print("Start training for {args.epochs} epochs")
@@ -400,7 +400,7 @@ def main(args):
                 }, checkpoint_path)
 
         test_stats = evaluate(data_loader_val, model, device)
-        print("Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         max_accuracy = max(max_accuracy, test_stats["acc1"])
         print('Max accuracy: {:.2f}%'.format(max_accuracy))
         train_f = {'train_{}'.format(k): v for k, v in train_stats.items()}
@@ -434,6 +434,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DeiT training and evaluation script', parents=[get_args_parser()])
     args = parser.parse_args()
+    # 这里判断是否指定了输出目录。
     if args.output_dir:
+        # 这里使用Path函数创建一个路径对象，路径为args.output_dir。然后调用mkdir函数来创建目录。
+        # parents=True表示如果父目录不存在，则创建父目录；exist_ok=True表示如果目录已经存在，则不会抛出异常。这样就可以确保输出目录存在，以便后续的模型保存操作。
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     main(args)
