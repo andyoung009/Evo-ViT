@@ -586,6 +586,7 @@ def resize_pos_embed(posemb, posemb_new):
     posemb_grid = posemb_grid.reshape(1, gs_old, gs_old, -1).permute(0, 3, 1, 2)
     posemb_grid = F.interpolate(posemb_grid, size=(gs_new, gs_new), mode='bilinear')
     posemb_grid = posemb_grid.permute(0, 2, 3, 1).reshape(1, gs_new * gs_new, -1)
+    # pos_embed的维度为(1,N+1,embed_dim),所以下行代码合并维度上是没有问题的
     posemb = torch.cat([posemb_tok, posemb_grid], dim=1)
     return posemb
 
@@ -601,6 +602,7 @@ def checkpoint_filter_fn(state_dict, model):
             # For old models that I trained prior to conv based patchification
             O, I, H, W = model.patch_embed.proj.weight.shape
             v = v.reshape(O, -1, H, W)
+        # 存在pos_embed的key且维度信息不一致，此时需要调整尺寸
         elif k == 'pos_embed' and v.shape != model.pos_embed.shape:
             # To resize pos embedding when using model at different size from pretrained weights
             v = resize_pos_embed(v, model.pos_embed)

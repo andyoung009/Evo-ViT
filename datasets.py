@@ -8,6 +8,8 @@ from torchvision.datasets.folder import ImageFolder, default_loader
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.data import create_transform
 
+from torchvision.transforms import InterpolationMode
+
 
 class INatDataset(ImageFolder):
     def __init__(self, root, train=True, year=2018, transform=None, target_transform=None,
@@ -99,7 +101,8 @@ def build_transform(is_train, args):
     if resize_im:
         size = int((256 / 224) * args.input_size)
         t.append(
-            transforms.Resize(size, interpolation=3),  # to maintain same ratio w.r.t. 224 images
+            # transforms.Resize(size, interpolation=3),  # to maintain same ratio w.r.t. 224 images
+            transforms.Resize(size, interpolation=InterpolationMode.BICUBIC)
         )
         t.append(transforms.CenterCrop(args.input_size))
 
@@ -157,7 +160,8 @@ def build_transform2(is_train, args):
     if resize_im:
         size = int((256 / 224) * args.input_size)
         t.append(
-            transforms.Resize(size, interpolation=3),  # to maintain same ratio w.r.t. 224 images
+            transforms.Resize(size, interpolation=InterpolationMode.BICUBIC)
+            # transforms.Resize(size, interpolation=3),  # to maintain same ratio w.r.t. 224 images
         )
         t.append(transforms.CenterCrop(args.input_size))
         t.append(transforms.ToTensor())
