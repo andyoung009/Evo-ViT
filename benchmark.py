@@ -54,7 +54,7 @@ parser.add_argument('--detail', action='store_true', default=False,
                     help='Provide train fwd/bwd/opt breakdown detail if True. Defaults to False')
 parser.add_argument('--results_file', default='', type=str, metavar='FILENAME',
                     help='Output csv file for validation results (summary)')
-parser.add_argument('--num_warm_iter', default=10, type=int,
+parser.add_argument('--num_warm_iter', default=8, type=int,
                     metavar='N', help='Number of warmup iterations (default: 10)')
 parser.add_argument('--num_bench_iter', default=40, type=int,
                     metavar='N', help='Number of benchmark iterations (default: 40)')

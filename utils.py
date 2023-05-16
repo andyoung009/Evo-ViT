@@ -76,7 +76,19 @@ class SmoothedValue(object):
             max=self.max,
             value=self.value)
 
-
+# 这是一个用于记录训练过程中指标的类MetricLogger。它可以记录训练过程中的损失、准确率、学习率等指标，并在训练过程中定期打印这些指标的平均值和标准差。
+# 在这个类中，我们使用了defaultdict和SmoothedValue两个类。defaultdict是Python内置的一个类，它可以创建一个字典，并为字典中不存在的键提供默认值。
+# 在这里，我们使用defaultdict创建了一个字典self.meters，用于存储各种指标的SmoothedValue对象。
+# SmoothedValue是一个自定义的类，用于计算平均值和标准差。它使用了一个滑动窗口来计算平均值和标准差，可以有效地平滑数据。
+# 在MetricLogger类中，我们使用SmoothedValue来记录各种指标的平均值和标准差。
+# MetricLogger类有以下几个方法：
+# 1. update方法：用于更新指标的值。它接受一个关键字参数kwargs，其中包含各种指标的名称和值。如果值是一个torch.Tensor对象，则将其转换为标量值。
+# 2. __getattr__方法：用于获取指标的值。如果属性名在self.meters中，则返回相应的SmoothedValue对象；否则，引发AttributeError异常。
+# 3. __str__方法：用于将指标的值转换为字符串。它遍历self.meters中的所有SmoothedValue对象，并将它们的名称和值转换为字符串。
+# 4. synchronize_between_processes方法：用于在多个进程之间同步指标的值。它遍历self.meters中的所有SmoothedValue对象，并调用它们的synchronize_between_processes方法。
+# 5. add_meter方法：用于向MetricLogger中添加一个新的指标。它接受两个参数：指标的名称和SmoothedValue对象。
+# 6. log_every方法：用于在训练过程中定期打印指标的值。它接受三个参数：可迭代对象iterable、打印频率print_freq和标题header。
+# 在每次迭代中，它会更新数据加载时间和迭代时间，并打印指标的平均值和标准差。如果可用，它还会打印GPU的最大内存使用量。最后，它会计算总时间并打印出来。
 class MetricLogger(object):
     def __init__(self, delimiter="\t"):
         self.meters = defaultdict(SmoothedValue)
